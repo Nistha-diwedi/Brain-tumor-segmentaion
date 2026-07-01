@@ -1,0 +1,7 @@
+﻿Django>=5.2
+Pillow
+python-dotenv
+google-generativeai
+torch
+torchvision
+numpy
