@@ -1,0 +1,259 @@
+{% extends 'brain_tumor_app/base.html' %}
+{% load static %}
+
+{% block title %}Scan #{{ report.id }} — BrainSeg AI{% endblock %}
+{% block page_title %}Scan #{{ report.id }}{% endblock %}
+
+{% block content %}
+<div>
+    <!-- Header -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <h2 class="fw-bold mb-1"><i class="fas fa-file-medical me-2 text-muted-custom"></i>MRI Scan #{{ report.id }}</h2>
+            <p class="text-muted-custom mb-0">
+                <i class="fas fa-calendar me-1"></i>
+                Uploaded {{ report.upload_date|date:"F d, Y \a\t H:i" }}
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'medical_history' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i> Back
+            </a>
+            <div class="dropdown">
+                <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="fas fa-gear me-2"></i> Actions
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    {% if report.predicted_mask %}
+                    <li><a class="dropdown-item" href="#" onclick="downloadImage('{{ report.predicted_mask.url }}', 'segmentation_{{ report.id }}.png')"><i class="fas fa-download me-2"></i>Download Segmentation</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="downloadImage('{{ report.uploaded_image.url }}', 'original_{{ report.id }}.png')"><i class="fas fa-download me-2"></i>Download Original</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    {% endif %}
+                    <li><a class="dropdown-item text-danger" href="{% url 'delete_report' report.id %}"><i class="fas fa-trash me-2"></i>Delete Scan</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Images -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header d-flex align-items-center">
+                    <i class="fas fa-images me-2 text-muted-custom"></i><h5 class="mb-0">Scan Images</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <h6 class="text-center text-muted-custom mb-3">Original MRI Scan</h6>
+                            <div class="text-center">
+                                {% if report.uploaded_image %}
+                                    <div class="image-frame mb-2">
+                                        <img src="{{ report.uploaded_image.url }}" class="img-fluid rounded zoomable-image"
+                                             style="max-height: 340px; cursor: zoom-in;" alt="Original MRI Scan">
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-primary" onclick="downloadImage('{{ report.uploaded_image.url }}', 'original_{{ report.id }}.png')">
+                                        <i class="fas fa-download me-1"></i> Download
+                                    </button>
+                                {% else %}
+                                    <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 300px;">
+                                        <div class="text-center text-muted-custom"><i class="fas fa-image fa-2x mb-2"></i><p class="mb-0">Image not available</p></div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <h6 class="text-center text-muted-custom mb-3">AI Segmentation Result</h6>
+                            <div class="text-center">
+                                {% if report.predicted_mask %}
+                                    <div class="image-frame mb-2">
+                                        <img src="{{ report.predicted_mask.url }}" class="img-fluid rounded zoomable-image"
+                                             style="max-height: 340px; cursor: zoom-in;" alt="Segmentation Mask">
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-success" onclick="downloadImage('{{ report.predicted_mask.url }}', 'segmentation_{{ report.id }}.png')">
+                                        <i class="fas fa-download me-1"></i> Download Mask
+                                    </button>
+                                {% else %}
+                                    <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 300px;">
+                                        <div class="text-center text-muted-custom">
+                                            <i class="fas fa-cog fa-spin fa-2x mb-2"></i>
+                                            <p class="mb-1">Processing...</p>
+                                            <small>The AI is analyzing your scan.</small>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Confidence -->
+            <div class="card mb-4">
+                <div class="card-header d-flex align-items-center">
+                    <i class="fas fa-chart-line me-2 text-muted-custom"></i><h6 class="mb-0">Analysis Results</h6>
+                </div>
+                <div class="card-body text-center">
+                    {% if report.model_confidence is not None %}
+                        <div class="confidence-badge mb-3
+                            {% if report.model_confidence >= 0.8 %}confidence-high
+                            {% elif report.model_confidence >= 0.6 %}confidence-medium
+                            {% else %}confidence-low{% endif %}"
+                            style="font-size: 1.4rem; padding: 0.75rem 1.4rem;">
+                            {{ report.get_confidence_percentage }}%
+                        </div>
+                        <div class="progress mb-3" style="height: 10px;">
+                            <div class="progress-bar
+                                {% if report.model_confidence >= 0.8 %}bg-success
+                                {% elif report.model_confidence >= 0.6 %}bg-warning
+                                {% else %}bg-danger{% endif %}"
+                                role="progressbar" style="width: {{ report.get_confidence_percentage }}%;"></div>
+                        </div>
+                        <p class="small text-muted-custom mb-0">
+                            {% if report.model_confidence >= 0.8 %}
+                                <i class="fas fa-circle-check text-success me-1"></i> High confidence detection
+                            {% elif report.model_confidence >= 0.6 %}
+                                <i class="fas fa-triangle-exclamation text-warning me-1"></i> Moderate confidence detection
+                            {% else %}
+                                <i class="fas fa-circle-exclamation text-danger me-1"></i> Low confidence detection
+                            {% endif %}
+                        </p>
+                    {% else %}
+                        <div class="py-3 text-muted-custom">
+                            <i class="fas fa-cog fa-spin fa-2x mb-2"></i>
+                            <p class="mb-0">Analyzing...</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Scan Info -->
+            <div class="card mb-4">
+                <div class="card-header d-flex align-items-center">
+                    <i class="fas fa-circle-info me-2 text-muted-custom"></i><h6 class="mb-0">Scan Information</h6>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0 small">
+                        <dt class="col-5 text-muted-custom fw-normal">Scan ID</dt><dd class="col-7 mb-2">#{{ report.id }}</dd>
+                        <dt class="col-5 text-muted-custom fw-normal">Upload Date</dt><dd class="col-7 mb-2">{{ report.upload_date|date:"M d, Y" }}</dd>
+                        <dt class="col-5 text-muted-custom fw-normal">Upload Time</dt><dd class="col-7 mb-2">{{ report.upload_date|date:"H:i" }}</dd>
+                        <dt class="col-5 text-muted-custom fw-normal">Status</dt>
+                        <dd class="col-7 mb-0">
+                            {% if report.predicted_mask %}
+                                <span class="badge bg-success"><i class="fas fa-check me-1"></i>Processed</span>
+                            {% else %}
+                                <span class="badge bg-warning"><i class="fas fa-clock me-1"></i>Processing</span>
+                            {% endif %}
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card">
+                <div class="card-header d-flex align-items-center">
+                    <i class="fas fa-bolt me-2 text-muted-custom"></i><h6 class="mb-0">Quick Actions</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'upload_mri' %}" class="btn btn-primary"><i class="fas fa-plus me-2"></i> Upload New Scan</a>
+                        {% if report.predicted_mask %}
+                        <button class="btn btn-outline-success" onclick="downloadImage('{{ report.predicted_mask.url }}', 'segmentation_{{ report.id }}.png')">
+                            <i class="fas fa-download me-2"></i> Download Results
+                        </button>
+                        {% endif %}
+                        <button class="btn btn-outline-info" onclick="shareReport()"><i class="fas fa-share-nodes me-2"></i> Share Report</button>
+                        <button class="btn btn-outline-secondary" onclick="window.print()"><i class="fas fa-print me-2"></i> Print Report</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Diagnosis -->
+    <div class="card mt-4">
+        <div class="card-header d-flex align-items-center">
+            <i class="fas fa-stethoscope me-2 text-muted-custom"></i><h5 class="mb-0">AI Diagnosis Summary</h5>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info border-0 d-flex align-items-start">
+                <i class="fas fa-robot fa-lg me-3 mt-1"></i>
+                <div class="flex-grow-1">
+                    <h6 class="mb-2">AI Analysis Report</h6>
+                    <div id="ai-report-text" style="white-space: pre-wrap;">{{ report.diagnosis_summary|default:"Click the button below to generate a detailed AI analysis of the segmentation findings."|linebreaks }}</div>
+                </div>
+            </div>
+
+            <div class="text-end mt-3">
+                <button id="generate-ai-btn" class="btn btn-primary" onclick="generateAIReport()" {% if not report.predicted_mask %}disabled{% endif %}>
+                    <i class="fas fa-robot me-2"></i> Generate Detailed AI Report
+                </button>
+                {% if not report.predicted_mask %}
+                <div class="small text-muted-custom mt-2">Available once segmentation is complete.</div>
+                {% endif %}
+            </div>
+
+            <div class="alert alert-warning border-0 mt-3 d-flex align-items-start mb-0">
+                <i class="fas fa-triangle-exclamation fa-lg me-3 mt-1"></i>
+                <div>
+                    <h6 class="mb-1">Important disclaimer</h6>
+                    <p class="mb-0 small">This AI analysis is for research and educational purposes only and is not a substitute
+                        for professional medical diagnosis. Always consult a qualified healthcare professional.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function generateAIReport() {
+    const btn = document.getElementById("generate-ai-btn");
+    const textDiv = document.getElementById("ai-report-text");
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="loading me-2"></span> Generating AI Report...';
+    textDiv.innerText = "AI is analyzing the MRI scan. Please wait...";
+
+    fetch("{% url 'generate_ai_analysis_ajax' report.id %}", {
+        method: "POST",
+        headers: { "X-CSRFToken": window.csrfToken, "Content-Type": "application/json" }
+    })
+    .then(res => res.json())
+    .then(data => {
+        textDiv.innerText = data.success ? data.text : ("Error: " + data.text);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-robot me-2"></i> Regenerate AI Report';
+    })
+    .catch(() => {
+        textDiv.innerText = "Something went wrong. Please try again.";
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-robot me-2"></i> Generate Detailed AI Report';
+    });
+}
+
+function downloadImage(url, filename) {
+    const link = document.createElement('a');
+    link.href = url; link.download = filename;
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+}
+
+function shareReport() {
+    const url = window.location.href;
+    if (navigator.share) {
+        navigator.share({ title: 'MRI Scan Report #{{ report.id }}', text: 'Brain tumor segmentation analysis', url });
+    } else {
+        navigator.clipboard.writeText(url).then(() => alert('Report URL copied to clipboard!'));
+    }
+}
+
+{% if not report.predicted_mask %}
+setTimeout(() => window.location.reload(), 30000);
+{% endif %}
+</script>
+{% endblock %}

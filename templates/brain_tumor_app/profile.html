@@ -1,0 +1,203 @@
+{% extends 'brain_tumor_app/base.html' %}
+{% load static %}
+
+{% block title %}Profile — BrainSeg AI{% endblock %}
+{% block page_title %}Profile{% endblock %}
+
+{% block content %}
+<div>
+    <!-- Profile header -->
+    <div class="card mb-4">
+        <div class="card-body d-flex flex-wrap align-items-center gap-3">
+            <div class="brand-badge" style="width: 64px; height: 64px; font-size: 1.6rem; border-radius: 16px;">
+                {{ user.full_name.0|default:user.username.0|upper }}
+            </div>
+            <div class="flex-grow-1">
+                <h1 class="fw-bold mb-1">{{ user.full_name|default:user.username }}</h1>
+                <p class="text-muted-custom mb-0">
+                    <i class="fas fa-at me-1"></i>{{ user.username }}
+                    {% if user.email %}<span class="mx-2">·</span><i class="fas fa-envelope me-1"></i>{{ user.email }}{% endif %}
+                </p>
+            </div>
+            <button class="btn btn-primary" onclick="showEditModal()"><i class="fas fa-pen me-2"></i> Edit Profile</button>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Personal Information -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header d-flex align-items-center">
+                    <i class="fas fa-user me-2 text-muted-custom"></i><h5 class="mb-0">Personal Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Full Name</label>
+                            <p class="form-control-plaintext mb-0">{{ user.full_name|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Username</label>
+                            <p class="form-control-plaintext mb-0">{{ user.username }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Email Address</label>
+                            <p class="form-control-plaintext mb-0">{{ user.email|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Date of Birth</label>
+                            <p class="form-control-plaintext mb-0">{% if user.dob %}{{ user.dob|date:"F d, Y" }}{% else %}Not provided{% endif %}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Gender</label>
+                            <p class="form-control-plaintext mb-0">{{ user.get_gender_display|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Phone Number</label>
+                            <p class="form-control-plaintext mb-0">{{ user.phone_number|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Address</label>
+                            <p class="form-control-plaintext mb-0">{{ user.address|default:"Not provided" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="card mt-4">
+                <div class="card-header d-flex align-items-center">
+                    <i class="fas fa-clock-rotate-left me-2 text-muted-custom"></i><h5 class="mb-0">Recent Activity</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_reports %}
+                        <div class="list-group list-group-flush">
+                            {% for report in recent_reports %}
+                            <div class="list-group-item border-0 px-0 d-flex align-items-center gap-3">
+                                <span class="feature-pill"><i class="fas fa-brain"></i></span>
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-0">MRI Scan #{{ report.id }}</h6>
+                                    <small class="text-muted-custom">Uploaded {{ report.upload_date|timesince }} ago</small>
+                                </div>
+                                {% if report.model_confidence %}
+                                    <span class="confidence-badge
+                                        {% if report.model_confidence >= 0.8 %}confidence-high
+                                        {% elif report.model_confidence >= 0.6 %}confidence-medium
+                                        {% else %}confidence-low{% endif %}">
+                                        {{ report.get_confidence_percentage }}%
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Processing</span>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="text-center mt-3">
+                            <a href="{% url 'medical_history' %}" class="btn btn-outline-primary"><i class="fas fa-clock-rotate-left me-2"></i> View All History</a>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <span class="feature-pill mb-3"><i class="fas fa-brain"></i></span>
+                            <h6>No activity yet</h6>
+                            <p class="text-muted-custom mb-3">Start by uploading your first MRI scan.</p>
+                            <a href="{% url 'upload_mri' %}" class="btn btn-primary"><i class="fas fa-plus me-2"></i> Upload MRI Scan</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header d-flex align-items-center">
+                    <i class="fas fa-chart-simple me-2 text-muted-custom"></i><h6 class="mb-0">Account Statistics</h6>
+                </div>
+                <div class="card-body d-grid gap-3">
+                    <div class="stat-card"><div class="stat-number">{{ total_scans }}</div><div class="stat-label">Total Scans</div></div>
+                    <div class="stat-card"><div class="stat-number">{{ processed_scans }}</div><div class="stat-label">Processed</div></div>
+                    <div class="stat-card"><div class="stat-number" style="font-size: 1.4rem;">{{ user.date_joined|date:"M Y" }}</div><div class="stat-label">Member Since</div></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header d-flex align-items-center">
+                    <i class="fas fa-gear me-2 text-muted-custom"></i><h6 class="mb-0">Account Settings</h6>
+                </div>
+                <div class="card-body d-grid gap-2">
+                    <button class="btn btn-outline-primary" onclick="showChangePasswordModal()"><i class="fas fa-key me-2"></i> Change Password</button>
+                    <button class="btn btn-outline-info" onclick="showNotificationSettings()"><i class="fas fa-bell me-2"></i> Notification Settings</button>
+                    <button class="btn btn-outline-secondary" onclick="downloadData()"><i class="fas fa-download me-2"></i> Download My Data</button>
+                    <hr class="my-1">
+                    <button class="btn btn-outline-danger" onclick="showDeleteAccountModal()"><i class="fas fa-user-xmark me-2"></i> Delete Account</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Profile Modal -->
+<div class="modal fade" id="editProfileModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title"><i class="fas fa-pen me-2 text-muted-custom"></i>Edit Profile</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="alert alert-info mb-0"><i class="fas fa-circle-info me-2"></i>Profile editing is coming soon. For now, contact support to update your details.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Change Password Modal -->
+<div class="modal fade" id="changePasswordModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title"><i class="fas fa-key me-2 text-muted-custom"></i>Change Password</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="alert alert-info mb-0"><i class="fas fa-circle-info me-2"></i>Password change is coming soon. For now, contact support to reset your password.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Account Modal -->
+<div class="modal fade" id="deleteAccountModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="fas fa-triangle-exclamation me-2"></i>Delete Account</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger">
+                    <h6 class="mb-2"><i class="fas fa-triangle-exclamation me-2"></i>Warning</h6>
+                    <p class="mb-2">This action cannot be undone. Deleting your account permanently removes:</p>
+                    <ul class="mb-0">
+                        <li>All your MRI scans and analysis results</li>
+                        <li>Your personal information</li>
+                        <li>Your account history</li>
+                    </ul>
+                </div>
+                <p class="text-muted-custom mb-0">If you're sure, please contact our support team.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="contactSupport()">Contact Support</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function showEditModal() { new bootstrap.Modal(document.getElementById('editProfileModal')).show(); }
+    function showChangePasswordModal() { new bootstrap.Modal(document.getElementById('changePasswordModal')).show(); }
+    function showDeleteAccountModal() { new bootstrap.Modal(document.getElementById('deleteAccountModal')).show(); }
+    function showNotificationSettings() { alert('Notification settings coming soon!'); }
+    function downloadData() { alert('Data download coming soon!'); }
+    function contactSupport() { window.location.href = 'mailto:support@brainseg.ai?subject=Account Deletion Request'; }
+</script>
+{% endblock %}

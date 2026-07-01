@@ -1,0 +1,196 @@
+{% extends 'brain_tumor_app/base.html' %}
+{% load static %}
+
+{% block title %}Delete Scan #{{ report.id }} - BrainSeg AI{% endblock %}
+{% block page_title %}Delete Scan{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-danger text-white text-center">
+                    <h4 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Confirm Deletion
+                    </h4>
+                </div>
+                <div class="card-body p-4">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-trash-alt fa-4x text-danger mb-3"></i>
+                        <h5>Delete MRI Scan #{{ report.id }}?</h5>
+                        <p class="text-muted-custom">
+                            This action cannot be undone. The following will be permanently deleted:
+                        </p>
+                    </div>
+
+                    <!-- What will be deleted -->
+                    <div class="alert alert-warning border-0 mb-4">
+                        <h6><i class="fas fa-list me-2"></i>Items to be deleted:</h6>
+                        <ul class="mb-0">
+                            <li>Original MRI scan image</li>
+                            {% if report.predicted_mask %}
+                            <li>AI-generated segmentation mask</li>
+                            {% endif %}
+                            {% if report.diagnosis_summary %}
+                            <li>Diagnosis summary and analysis</li>
+                            {% endif %}
+                            <li>Upload date and metadata</li>
+                            <li>Confidence scores and results</li>
+                        </ul>
+                    </div>
+
+                    <!-- Scan Preview -->
+                    <div class="row mb-4">
+                        <div class="col-6">
+                            <div class="text-center">
+                                <label class="small text-muted-custom fw-bold d-block mb-2">Original Scan</label>
+                                {% if report.uploaded_image %}
+                                    <img src="{{ report.uploaded_image.url }}" 
+                                         class="img-fluid rounded shadow-sm" 
+                                         style="height: 100px; object-fit: cover;"
+                                         alt="Original MRI Scan">
+                                {% else %}
+                                    <div class="bg-light rounded d-flex align-items-center justify-content-center" 
+                                         style="height: 100px;">
+                                        <i class="fas fa-image text-muted"></i>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="col-6">
+                            <div class="text-center">
+                                <label class="small text-muted-custom fw-bold d-block mb-2">Segmentation</label>
+                                {% if report.predicted_mask %}
+                                    <img src="{{ report.predicted_mask.url }}" 
+                                         class="img-fluid rounded shadow-sm" 
+                                         style="height: 100px; object-fit: cover;"
+                                         alt="Segmentation Mask">
+                                {% else %}
+                                    <div class="bg-light rounded d-flex align-items-center justify-content-center" 
+                                         style="height: 100px;">
+                                        <i class="fas fa-cog text-muted"></i>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Scan Details -->
+                    <div class="card bg-light border-0 mb-4">
+                        <div class="card-body py-3">
+                            <div class="row small">
+                                <div class="col-6">
+                                    <strong>Scan ID:</strong> #{{ report.id }}
+                                </div>
+                                <div class="col-6">
+                                    <strong>Upload Date:</strong> {{ report.upload_date|date:"M d, Y" }}
+                                </div>
+                                {% if report.model_confidence %}
+                                <div class="col-6 mt-2">
+                                    <strong>Confidence:</strong> {{ report.get_confidence_percentage }}%
+                                </div>
+                                {% endif %}
+                                <div class="col-6 mt-2">
+                                    <strong>Status:</strong> 
+                                    {% if report.predicted_mask %}
+                                        <span class="badge bg-success">Processed</span>
+                                    {% else %}
+                                        <span class="badge bg-warning">Processing</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Confirmation Form -->
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="form-check mb-4">
+                            <input class="form-check-input" type="checkbox" id="confirmDelete" required>
+                            <label class="form-check-label text-muted-custom" for="confirmDelete">
+                                I understand that this action cannot be undone and I want to permanently delete this scan.
+                            </label>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'view_report' report.id %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>
+                                Cancel
+                            </a>
+                            
+                            <button type="submit" class="btn btn-danger" id="deleteButton" disabled>
+                                <i class="fas fa-trash-alt me-2"></i>
+                                Delete Permanently
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Alternative Actions -->
+            <div class="text-center mt-4">
+                <p class="text-muted-custom small mb-2">
+                    <i class="fas fa-lightbulb me-1"></i>
+                    Instead of deleting, you can:
+                </p>
+                <div class="d-flex justify-content-center gap-2">
+                    {% if report.predicted_mask %}
+                    <button class="btn btn-sm btn-outline-primary" 
+                            onclick="downloadImage('{{ report.predicted_mask.url }}', 'segmentation_{{ report.id }}.png')">
+                        <i class="fas fa-download me-1"></i>
+                        Download Results
+                    </button>
+                    {% endif %}
+                    
+                    <a href="{% url 'medical_history' %}" class="btn btn-sm btn-outline-info">
+                        <i class="fas fa-history me-1"></i>
+                        View All Scans
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const confirmCheckbox = document.getElementById('confirmDelete');
+        const deleteButton = document.getElementById('deleteButton');
+        
+        confirmCheckbox.addEventListener('change', function() {
+            deleteButton.disabled = !this.checked;
+            
+            if (this.checked) {
+                deleteButton.classList.remove('btn-danger');
+                deleteButton.classList.add('btn-danger');
+            }
+        });
+
+        // Add confirmation on form submit
+        const form = document.querySelector('form');
+        form.addEventListener('submit', function(e) {
+            const confirmed = confirm(
+                'Are you absolutely sure you want to delete this scan? This action cannot be undone.'
+            );
+            
+            if (!confirmed) {
+                e.preventDefault();
+            }
+        });
+    });
+
+    function downloadImage(url, filename) {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+</script>
+{% endblock %}

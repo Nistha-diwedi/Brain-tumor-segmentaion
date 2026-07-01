@@ -1,0 +1,241 @@
+{% extends 'brain_tumor_app/base.html' %}
+{% load static %}
+
+{% block title %}Dashboard — BrainSeg AI{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div>
+    <!-- Welcome Header -->
+    <div class="mb-4">
+        <h2 class="fw-bold mb-1">Welcome back, {{ user.full_name|default:user.username }} 👋</h2>
+        <p class="text-muted-custom mb-0">Here's an overview of your MRI analysis activity.</p>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="stat-card text-start d-flex align-items-center justify-content-between">
+                <div>
+                    <div class="stat-number">{{ total_scans }}</div>
+                    <div class="stat-label">Total Scans</div>
+                </div>
+                <span class="feature-pill"><i class="fas fa-images"></i></span>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card text-start d-flex align-items-center justify-content-between">
+                <div>
+                    <div class="stat-number">{{ processed_scans }}</div>
+                    <div class="stat-label">Processed</div>
+                </div>
+                <span class="feature-pill"><i class="fas fa-circle-check"></i></span>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card text-start d-flex align-items-center justify-content-between">
+                <div>
+                    <div class="stat-number">
+                        {% if total_scans > 0 %}{% widthratio processed_scans total_scans 100 %}%{% else %}—{% endif %}
+                    </div>
+                    <div class="stat-label">Success Rate</div>
+                </div>
+                <span class="feature-pill"><i class="fas fa-chart-line"></i></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Quick Upload -->
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header d-flex align-items-center">
+                    <i class="fas fa-cloud-arrow-up me-2 text-muted-custom"></i>
+                    <h5 class="mb-0">Quick Upload</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted-custom mb-3">
+                        Upload an MRI scan for instant AI-powered tumor segmentation.
+                    </p>
+
+                    <form method="post" action="{% url 'upload_mri' %}" enctype="multipart/form-data" id="quick-upload-form">
+                        {% csrf_token %}
+                        <div class="upload-area" id="upload-area">
+                            <div class="upload-icon"><i class="fas fa-cloud-arrow-up"></i></div>
+                            <div class="upload-text">Drag &amp; drop your MRI scan here</div>
+                            <div class="upload-subtext">or click to browse files</div>
+                            {{ upload_form.uploaded_image }}
+                        </div>
+
+                        <div id="progress-container" style="display: none;" class="mt-3">
+                            <div class="progress">
+                                <div class="progress-bar" role="progressbar" style="width: 0%" id="upload-progress"
+                                     aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                            <small class="text-muted-custom">Processing your scan...</small>
+                        </div>
+
+                        <div class="d-grid mt-3">
+                            <button type="submit" class="btn btn-primary" id="upload-button">
+                                <i class="fas fa-brain me-2"></i> Upload &amp; Analyze
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Scans -->
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-clock-rotate-left me-2 text-muted-custom"></i>
+                        <h5 class="mb-0">Recent Scans</h5>
+                    </div>
+                    <a href="{% url 'medical_history' %}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_reports %}
+                        <div class="list-group list-group-flush">
+                            {% for report in recent_reports %}
+                            <div class="list-group-item border-0 px-3 py-3">
+                                <div class="d-flex align-items-center gap-3">
+                                    {% if report.uploaded_image %}
+                                        <img src="{{ report.uploaded_image.url }}" class="rounded image-preview"
+                                             style="width: 52px; height: 52px; object-fit: cover;" alt="MRI Scan">
+                                    {% else %}
+                                        <div class="feature-pill"><i class="fas fa-brain"></i></div>
+                                    {% endif %}
+
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <h6 class="mb-1">Scan #{{ report.id }}</h6>
+                                                <small class="text-muted-custom">
+                                                    <i class="fas fa-calendar me-1"></i>{{ report.upload_date|date:"M d, Y H:i" }}
+                                                </small>
+                                            </div>
+                                            {% if report.model_confidence %}
+                                                <span class="confidence-badge
+                                                    {% if report.model_confidence >= 0.8 %}confidence-high
+                                                    {% elif report.model_confidence >= 0.6 %}confidence-medium
+                                                    {% else %}confidence-low{% endif %}">
+                                                    {{ report.get_confidence_percentage }}%
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Processing</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-2 ps-1">
+                                    <a href="{% url 'view_report' report.id %}" class="btn btn-sm btn-outline-primary me-2">
+                                        <i class="fas fa-eye me-1"></i> View
+                                    </a>
+                                    {% if report.predicted_mask %}
+                                        <span class="badge bg-success"><i class="fas fa-check me-1"></i> Segmented</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5 px-3">
+                            <span class="feature-pill mb-3"><i class="fas fa-brain"></i></span>
+                            <h6>No scans yet</h6>
+                            <p class="text-muted-custom small mb-3">Upload your first MRI scan to get started.</p>
+                            <a href="{% url 'upload_mri' %}" class="btn btn-primary">
+                                <i class="fas fa-plus me-2"></i> Upload First Scan
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="card mt-4">
+        <div class="card-header d-flex align-items-center">
+            <i class="fas fa-bolt me-2 text-muted-custom"></i>
+            <h5 class="mb-0">Quick Actions</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3 col-6">
+                    <a href="{% url 'upload_mri' %}" class="btn btn-outline-primary w-100 d-flex flex-column align-items-center justify-content-center py-3">
+                        <i class="fas fa-cloud-arrow-up fa-lg mb-2"></i><span>Upload Scan</span>
+                    </a>
+                </div>
+                <div class="col-md-3 col-6">
+                    <a href="{% url 'medical_history' %}" class="btn btn-outline-primary w-100 d-flex flex-column align-items-center justify-content-center py-3">
+                        <i class="fas fa-clock-rotate-left fa-lg mb-2"></i><span>View History</span>
+                    </a>
+                </div>
+                <div class="col-md-3 col-6">
+                    <a href="{% url 'profile' %}" class="btn btn-outline-primary w-100 d-flex flex-column align-items-center justify-content-center py-3">
+                        <i class="fas fa-user fa-lg mb-2"></i><span>Profile</span>
+                    </a>
+                </div>
+                <div class="col-md-3 col-6">
+                    <button class="btn btn-outline-primary w-100 d-flex flex-column align-items-center justify-content-center py-3" onclick="showHelpModal()">
+                        <i class="fas fa-circle-question fa-lg mb-2"></i><span>Help</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Help Modal -->
+<div class="modal fade" id="helpModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-circle-question me-2 text-muted-custom"></i>Help &amp; Support</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-cloud-arrow-up me-2 text-muted-custom"></i>How to upload</h6>
+                        <ul class="small text-muted-custom mb-0">
+                            <li>Click the upload area or drag &amp; drop your MRI image</li>
+                            <li>Supported formats: JPEG, PNG</li>
+                            <li>Maximum file size: 10&nbsp;MB</li>
+                            <li>Processing takes 10–30 seconds</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-brain me-2 text-muted-custom"></i>Understanding results</h6>
+                        <ul class="small text-muted-custom mb-0">
+                            <li>Green badge: high confidence (≥ 80%)</li>
+                            <li>Amber badge: medium confidence (60–80%)</li>
+                            <li>Red badge: low confidence (&lt; 60%)</li>
+                            <li>White areas in the mask indicate detected regions</li>
+                        </ul>
+                    </div>
+                </div>
+                <hr>
+                <p class="text-muted-custom small text-center mb-0">
+                    Need more help? Contact <a href="mailto:support@brainseg.ai">support@brainseg.ai</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const quickUploadForm = document.getElementById('quick-upload-form');
+        if (quickUploadForm) quickUploadForm.setAttribute('data-ajax-upload', 'true');
+    });
+
+    function showHelpModal() {
+        new bootstrap.Modal(document.getElementById('helpModal')).show();
+    }
+</script>
+{% endblock %}

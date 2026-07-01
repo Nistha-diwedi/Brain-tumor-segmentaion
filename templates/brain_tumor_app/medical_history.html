@@ -1,0 +1,161 @@
+{% extends 'brain_tumor_app/base.html' %}
+{% load static %}
+
+{% block title %}Medical History — BrainSeg AI{% endblock %}
+{% block page_title %}Medical History{% endblock %}
+
+{% block content %}
+<div>
+    <p class="text-muted-custom mb-4">View, filter and manage all your MRI scan results.</p>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3 align-items-end">
+                <div class="col-md-5">
+                    <label class="form-label">Search</label>
+                    <input type="text" class="form-control" name="search" placeholder="Search in diagnosis summary..." value="{{ request.GET.search }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Date Range</label>
+                    <select class="form-select" name="date_filter">
+                        <option value="">All Time</option>
+                        <option value="today" {% if request.GET.date_filter == 'today' %}selected{% endif %}>Today</option>
+                        <option value="week" {% if request.GET.date_filter == 'week' %}selected{% endif %}>This Week</option>
+                        <option value="month" {% if request.GET.date_filter == 'month' %}selected{% endif %}>This Month</option>
+                        <option value="year" {% if request.GET.date_filter == 'year' %}selected{% endif %}>This Year</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Confidence</label>
+                    <select class="form-select" name="confidence_filter">
+                        <option value="">All</option>
+                        <option value="high" {% if request.GET.confidence_filter == 'high' %}selected{% endif %}>High</option>
+                        <option value="medium" {% if request.GET.confidence_filter == 'medium' %}selected{% endif %}>Medium</option>
+                        <option value="low" {% if request.GET.confidence_filter == 'low' %}selected{% endif %}>Low</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-grid">
+                    <button type="submit" class="btn btn-outline-primary"><i class="fas fa-filter me-1"></i> Filter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if reports %}
+        <div class="row g-4">
+            {% for report in reports %}
+            <div class="col-lg-6">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div>
+                                <h5 class="card-title mb-1"><i class="fas fa-brain me-2 text-muted-custom"></i>Scan #{{ report.id }}</h5>
+                                <small class="text-muted-custom"><i class="fas fa-calendar me-1"></i>{{ report.upload_date|date:"F d, Y \a\t H:i" }}</small>
+                            </div>
+                            {% if report.model_confidence %}
+                                <span class="confidence-badge
+                                    {% if report.model_confidence >= 0.8 %}confidence-high
+                                    {% elif report.model_confidence >= 0.6 %}confidence-medium
+                                    {% else %}confidence-low{% endif %}">
+                                    {{ report.get_confidence_percentage }}%
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary">Processing</span>
+                            {% endif %}
+                        </div>
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-6 text-center">
+                                <label class="small text-muted-custom fw-bold d-block mb-2">Original</label>
+                                {% if report.uploaded_image %}
+                                    <img src="{{ report.uploaded_image.url }}" class="img-fluid rounded image-preview zoomable-image"
+                                         style="height: 120px; width: 100%; object-fit: cover; cursor: zoom-in;" alt="Original MRI Scan">
+                                {% else %}
+                                    <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 120px;"><i class="fas fa-image text-muted-custom"></i></div>
+                                {% endif %}
+                            </div>
+                            <div class="col-6 text-center">
+                                <label class="small text-muted-custom fw-bold d-block mb-2">Segmentation</label>
+                                {% if report.predicted_mask %}
+                                    <img src="{{ report.predicted_mask.url }}" class="img-fluid rounded image-preview zoomable-image"
+                                         style="height: 120px; width: 100%; object-fit: cover; cursor: zoom-in;" alt="Segmentation Mask">
+                                {% else %}
+                                    <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 120px;">
+                                        <div class="text-center text-muted-custom"><i class="fas fa-cog fa-spin mb-1"></i><div class="small">Processing...</div></div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        {% if report.diagnosis_summary %}
+                            <p class="small text-muted-custom">{{ report.diagnosis_summary|truncatewords:18 }}</p>
+                        {% endif %}
+
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <a href="{% url 'view_report' report.id %}" class="btn btn-sm btn-outline-primary me-2"><i class="fas fa-eye me-1"></i> View</a>
+                                {% if report.predicted_mask %}
+                                    <button class="btn btn-sm btn-outline-success" onclick="downloadImage('{{ report.predicted_mask.url }}', 'segmentation_{{ report.id }}.png')"><i class="fas fa-download me-1"></i> Download</button>
+                                {% endif %}
+                            </div>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown"><i class="fas fa-ellipsis-vertical"></i></button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><a class="dropdown-item" href="{% url 'view_report' report.id %}"><i class="fas fa-eye me-2"></i>View Details</a></li>
+                                    {% if report.predicted_mask %}
+                                    <li><a class="dropdown-item" href="#" onclick="downloadImage('{{ report.predicted_mask.url }}', 'segmentation_{{ report.id }}.png')"><i class="fas fa-download me-2"></i>Download Mask</a></li>
+                                    {% endif %}
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item text-danger" href="{% url 'delete_report' report.id %}"><i class="fas fa-trash me-2"></i>Delete</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        {% if reports.has_other_pages %}
+        <nav class="mt-4" aria-label="Medical history pagination">
+            <ul class="pagination justify-content-center">
+                {% if reports.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?page={{ reports.previous_page_number }}&search={{ request.GET.search }}&date_filter={{ request.GET.date_filter }}&confidence_filter={{ request.GET.confidence_filter }}"><i class="fas fa-chevron-left"></i></a></li>
+                {% endif %}
+                {% for num in reports.paginator.page_range %}
+                    {% if reports.number == num %}
+                        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% elif num > reports.number|add:'-3' and num < reports.number|add:'3' %}
+                        <li class="page-item"><a class="page-link" href="?page={{ num }}&search={{ request.GET.search }}&date_filter={{ request.GET.date_filter }}&confidence_filter={{ request.GET.confidence_filter }}">{{ num }}</a></li>
+                    {% endif %}
+                {% endfor %}
+                {% if reports.has_next %}
+                    <li class="page-item"><a class="page-link" href="?page={{ reports.next_page_number }}&search={{ request.GET.search }}&date_filter={{ request.GET.date_filter }}&confidence_filter={{ request.GET.confidence_filter }}"><i class="fas fa-chevron-right"></i></a></li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+
+    {% else %}
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <span class="feature-pill mb-3"><i class="fas fa-brain"></i></span>
+                <h4>No MRI scans found</h4>
+                <p class="text-muted-custom mb-4">No scans match your filters, or you haven't uploaded any scans yet.</p>
+                <a href="{% url 'upload_mri' %}" class="btn btn-primary btn-lg"><i class="fas fa-plus me-2"></i> Upload Your First Scan</a>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function downloadImage(url, filename) {
+        const link = document.createElement('a');
+        link.href = url; link.download = filename;
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    }
+</script>
+{% endblock %}

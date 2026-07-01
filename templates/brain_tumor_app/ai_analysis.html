@@ -1,0 +1,15 @@
+<h2>AI Generated Analysis</h2>
+
+<p><strong>Report ID:</strong> {{ report.id }}</p>
+
+{% if report.predicted_mask %}
+    <img src="{{ report.predicted_mask.url }}" width="300">
+{% endif %}
+
+<hr>
+
+<pre style="white-space: pre-wrap;">
+{{ ai_generated_text }}
+</pre>
+
+<a href="{% url 'view_report' report.id %}">Back to Report</a>

@@ -1,0 +1,112 @@
+{% extends 'brain_tumor_app/base.html' %}
+{% load static %}
+
+{% block title %}Sign In — BrainSeg AI{% endblock %}
+
+{% block content %}
+<div class="hero-section" style="min-height: 100vh; display: flex; align-items: center;">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-7 col-lg-5">
+                <div class="text-center mb-4">
+                    <a href="{% url 'landing' %}" class="navbar-brand justify-content-center d-inline-flex">
+                        <span class="brand-badge"><i class="fas fa-brain"></i></span> BrainSeg&nbsp;AI
+                    </a>
+                </div>
+
+                <div class="card glass border-0">
+                    <div class="card-body p-4 p-md-5">
+                        <div class="text-center mb-4">
+                            <h2 class="fw-bold mb-1">Welcome back</h2>
+                            <p class="text-muted-custom mb-0">Sign in to your account to continue</p>
+                        </div>
+
+                        <form method="post">
+                            {% csrf_token %}
+
+                            {% if form.non_field_errors %}
+                                <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                            {% endif %}
+
+                            <div class="mb-3">
+                                <label for="{{ form.username.id_for_label }}" class="form-label">
+                                    <i class="fas fa-user me-1"></i> Username
+                                </label>
+                                <input type="text"
+                                       class="form-control{% if form.username.errors %} is-invalid{% endif %}"
+                                       id="{{ form.username.id_for_label }}"
+                                       name="{{ form.username.name }}"
+                                       value="{{ form.username.value|default:'' }}"
+                                       placeholder="Enter your username" required>
+                                {% if form.username.errors %}
+                                    <div class="invalid-feedback">{{ form.username.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="{{ form.password.id_for_label }}" class="form-label">
+                                    <i class="fas fa-lock me-1"></i> Password
+                                </label>
+                                <div class="position-relative">
+                                    <input type="password"
+                                           class="form-control{% if form.password.errors %} is-invalid{% endif %}"
+                                           id="{{ form.password.id_for_label }}"
+                                           name="{{ form.password.name }}"
+                                           placeholder="Enter your password" required style="padding-right: 3rem;">
+                                    <button type="button" class="btn btn-link position-absolute end-0 top-50 translate-middle-y"
+                                            onclick="togglePassword('{{ form.password.id_for_label }}')">
+                                        <i class="fas fa-eye" id="toggleIcon"></i>
+                                    </button>
+                                </div>
+                                {% if form.password.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.password.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="remember_me" name="remember_me">
+                                    <label class="form-check-label text-muted-custom small" for="remember_me">Remember me</label>
+                                </div>
+                            </div>
+
+                            <div class="d-grid mb-4">
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-right-to-bracket me-2"></i> Sign In
+                                </button>
+                            </div>
+
+                            <p class="text-center text-muted-custom mb-0">
+                                Don't have an account?
+                                <a href="{% url 'register' %}" class="fw-bold text-decoration-none">Sign up</a>
+                            </p>
+                        </form>
+                    </div>
+                </div>
+
+                <p class="text-center text-muted-custom small mt-3 mb-0">
+                    <i class="fas fa-lock me-1"></i> Your credentials are transmitted securely
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function togglePassword(inputId) {
+        const input = document.getElementById(inputId);
+        const icon = document.getElementById('toggleIcon');
+        const show = input.type === 'password';
+        input.type = show ? 'text' : 'password';
+        icon.classList.toggle('fa-eye', !show);
+        icon.classList.toggle('fa-eye-slash', show);
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const field = document.getElementById('{{ form.username.id_for_label }}');
+        if (field) field.focus();
+    });
+</script>
+{% endblock %}
